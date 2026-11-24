@@ -9,30 +9,57 @@ chosen for the judge's brief: it is unmistakably the machine speaking
 snacks, exact change, button B7, the coil), the punch lands in the
 last few words ("drop you something sweet"), it is short and speakable
 at 124 characters, and it is cheeky and warm rather than creepy.
+
+Revision: renamed LINE to ENTRY_LINE, extracted the validation
+and file-writing steps into validate() and write_entry(), and
+added a --output argument (default /output/entry.txt) so the
+destination is explicit instead of hard-coded in main().
+The entry line itself is unchanged.
 """
 
+import argparse
 import os
 
-LINE = (
+ENTRY_LINE = (
     "Hey you \u2014 I've got cold drinks, warm snacks and exact change "
     "for a smile. Press B7 and let my coil drop you something sweet."
 )
 
+MAX_CHARS = 200
+DEFAULT_OUTPUT = "/output/entry.txt"
+
+
+def validate(text: str) -> str:
+    """Check the entry line meets the bounty constraints."""
+    assert 1 <= len(text) <= MAX_CHARS, "line must be 1-200 characters"
+    assert text == text.strip(), "no leading/trailing whitespace"
+    assert "\n" not in text and "\r" not in text, "must be a single line"
+    assert all(ord(c) >= 32 and ord(c) != 127 for c in text), (
+        "must not contain hidden control characters"
+    )
+    assert text.strip(), "must not be only whitespace"
+    return text
+
+
+def write_entry(text: str, output_path: str) -> None:
+    """Write the validated entry line to output_path (no trailing newline)."""
+    directory = os.path.dirname(output_path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+    with open(output_path, "w", encoding="utf-8", newline="") as f:
+        f.write(text)
+
 
 def main() -> None:
-    text = LINE
-    # Gate: /output/entry.txt must be UTF-8 text of 1 to 200 characters,
-    # not only white space. This line is 124 characters.
-    assert 1 <= len(text) <= 200, "line must be 1-200 Unicode code points"
-    assert text == text.strip(), "line must have no leading/trailing whitespace"
-    assert "\n" not in text and "\r" not in text, "line must be a single line"
-    assert all(ord(c) >= 32 and ord(c) != 127 for c in text), (
-        "line must not contain hidden control characters"
+    parser = argparse.ArgumentParser(description="Write the vending-machine pickup-line entry.")
+    parser.add_argument(
+        "--output",
+        default=DEFAULT_OUTPUT,
+        help="destination path for entry.txt (default: %(default)s)",
     )
-    assert text.strip(), "line must not be only whitespace"
-    os.makedirs("/output", exist_ok=True)
-    with open("/output/entry.txt", "w", encoding="utf-8", newline="") as f:
-        f.write(text)
+    args = parser.parse_args()
+    text = validate(ENTRY_LINE)
+    write_entry(text, args.output)
 
 
 if __name__ == "__main__":
